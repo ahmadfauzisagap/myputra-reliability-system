@@ -5,3 +5,4 @@ scikit-fuzzy
 openpyxl
 scipy
 networkx
+matplotlib
