@@ -1,8 +1,5 @@
 streamlit
 pandas
 numpy
-matplotlib
 scikit-fuzzy
 openpyxl
-altair
-pip install google-generativeai
