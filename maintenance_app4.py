@@ -103,6 +103,11 @@ with tab3:
                         df_imported = pd.read_csv(uploaded_file)
                     else:
                         df_imported = pd.read_excel(uploaded_file)
+                        
+                    # SAVE IT TO THE SESSION STATE (This is the magic line!)
+                    st.session_state['machinery_data'] = df_imported
+                    
+                    st.success("Data uploaded and saved to memory!")
                     
                     # Clean headers
                     df_imported.columns = df_imported.columns.str.strip()
@@ -1171,7 +1176,18 @@ with tab7:
             st.download_button("📥 Download Report", report_text, file_name=f"RCA_{equipment_tag}.txt")
         else:
             st.error("Please fill in the Problem Statement and the 5th Why to generate a report.")
-            
+        
+        # Inside your Tab 7 code (and 8, 9, 10):
+if 'machinery_data' in st.session_state:
+    # Retrieve the data from memory
+    df = st.session_state['machinery_data']
+    
+    # Now build your charts and tables using 'df'
+    st.write("Data loaded successfully!")
+    st.dataframe(df)
+else:
+    st.warning("Please upload your data in Tab 3 first.")
+    
 # ==========================================
 # TAB 8: SPARE PARTS OPTIMIZER (Time-Based)
 # ==========================================
@@ -1299,6 +1315,18 @@ with tab8:
     else:
         st.success(f"✅ **Strategy Success:** If you order on **{order_date.strftime('%d %b')}**, the part arrives exactly when the old one is predicted to fail (Orange Bar matches Green End).")
         
+        # Inside your Tab 7 code (and 8, 9, 10):
+if 'machinery_data' in st.session_state:
+    # Retrieve the data from memory
+    df = st.session_state['machinery_data']
+    
+    # Now build your charts and tables using 'df'
+    st.write("Data loaded successfully!")
+    st.dataframe(df)
+else:
+    st.warning("Please upload your data in Tab 3 first.")    
+    
+    
 # ==========================================
 # TAB 9: INTEGRATED MASTER DASHBOARD (Synced)
 # ==========================================
@@ -1465,6 +1493,17 @@ with tab9:
             "Projected λ": [f"{lower:.4f}", f"{val_lambda:.4f}", f"{upper:.4f}"]
         }), hide_index=True, use_container_width=True)
         
+        
+        # Inside your Tab 7 code (and 8, 9, 10):
+if 'machinery_data' in st.session_state:
+    # Retrieve the data from memory
+    df = st.session_state['machinery_data']
+    
+    # Now build your charts and tables using 'df'
+    st.write("Data loaded successfully!")
+    st.dataframe(df)
+else:
+    st.warning("Please upload your data in Tab 3 first.")
         
 # ==========================================
 # TAB 10: PLANNED MAINTENANCE & LIVE INVENTORY (Linked to Tab 2)
@@ -1651,3 +1690,14 @@ with tab10:
             hide_index=True, 
             use_container_width=True
         )
+        
+        # Inside your Tab 7 code (and 8, 9, 10):
+if 'machinery_data' in st.session_state:
+    # Retrieve the data from memory
+    df = st.session_state['machinery_data']
+    
+    # Now build your charts and tables using 'df'
+    st.write("Data loaded successfully!")
+    st.dataframe(df)
+else:
+    st.warning("Please upload your data in Tab 3 first.")
