@@ -1308,16 +1308,7 @@ with tab8:
     else:
         st.success(f"✅ **Strategy Success:** If you order on **{order_date.strftime('%d %b')}**, the part arrives exactly when the old one is predicted to fail (Orange Bar matches Green End).")
         
-        # Inside your Tab 7 code (and 8, 9, 10):
-if 'machinery_data' in st.session_state:
-    # Retrieve the data from memory
-    df = st.session_state['machinery_data']
-    
-    # Now build your charts and tables using 'df'
-    st.write("Data loaded successfully!")
-    st.dataframe(df)
-else:
-    st.warning("Please upload your data in Tab 3 first.")    
+         
     
     
 # ==========================================
@@ -1487,19 +1478,10 @@ with tab9:
         }), hide_index=True, use_container_width=True)
         
         
-        # Inside your Tab 7 code (and 8, 9, 10):
-if 'machinery_data' in st.session_state:
-    # Retrieve the data from memory
-    df = st.session_state['machinery_data']
-    
-    # Now build your charts and tables using 'df'
-    st.write("Data loaded successfully!")
-    st.dataframe(df)
-else:
-    st.warning("Please upload your data in Tab 3 first.")
+       
         
 # ==========================================
-# TAB 10: PLANNED MAINTENANCE & LIVE INVENTORY (Linked to Tab 2)
+# TAB 10: PLANNED MAINTENANCE & LIVE INVENTORY
 # ==========================================
 import datetime as dt
 import pandas as pd
@@ -1510,19 +1492,15 @@ with tab10:
     st.markdown("Execute scheduled work orders and automatically track your live warehouse stock.")
     st.divider()
 
-# --- 1. INITIALIZE & SYNC LIVE DATABASE ---
-    
-    # Get the latest real equipment list from Tab 3 (or use fallback if empty)
+    # --- 1. INITIALIZE & SYNC LIVE DATABASE ---
     if 'shared_df' in st.session_state and st.session_state['shared_df'] is not None:
         current_equip_list = st.session_state['shared_df']['Equipment Name'].unique().tolist()
     else:
         current_equip_list = [f"Equipment {i}" for i in range(1, 11)]
 
-    # 1a. Sync the Inventory Ledger
     if 'live_inventory' not in st.session_state:
         st.session_state['live_inventory'] = {}
         
-    # 🔥 THE PURGE RULE: Delete old dummy data if it isn't in the CSV
     keys_to_delete = []
     for eq in st.session_state['live_inventory'].keys():
         if eq not in current_equip_list:
@@ -1530,31 +1508,27 @@ with tab10:
     for k in keys_to_delete:
         del st.session_state['live_inventory'][k]
         
-    # Add any new equipment
     for eq in current_equip_list:
         if eq not in st.session_state['live_inventory']:
+            # 🔥 DEFAULT STOCK CHANGED TO 2 HERE
             st.session_state['live_inventory'][eq] = {
-                'Stock': 10, 'ROP': 2, 'EOQ': 5, 'Strategy': 'Pending Analysis'
+                'Stock': 2, 'ROP': 2, 'EOQ': 5, 'Strategy': 'Pending Analysis'
             }
 
-    # 1b. Sync the PMS Work Orders
     if 'pms_tasks' not in st.session_state:
         st.session_state['pms_tasks'] = pd.DataFrame(columns=[
             'Work Order', 'Equipment', 'Task', 'Interval (Days)', 'Parts Needed', 'Last Done', 'Next Due'
         ])
         
-    # 🔥 PURGE RULE 2: Remove work orders for dummy equipment
     df_pms = st.session_state['pms_tasks']
     df_pms = df_pms[df_pms['Equipment'].isin(current_equip_list)]
         
-    # Check what equipment already has a scheduled task
     existing_tasks = df_pms['Equipment'].tolist()
     new_tasks = []
     today = dt.date.today()
     
     for i, eq in enumerate(current_equip_list):
         if eq not in existing_tasks:
-            # Generate a default work order for any newly uploaded equipment
             last_done = today - dt.timedelta(days=80)
             new_tasks.append({
                 'Work Order': f"WO-2026-{100 + len(existing_tasks) + i}",
@@ -1567,14 +1541,11 @@ with tab10:
             })
             
     if new_tasks:
-        # Append the new tasks
         df_pms = pd.concat([df_pms, pd.DataFrame(new_tasks)], ignore_index=True)
         
-    # Save the cleaned-up table back to memory
     st.session_state['pms_tasks'] = df_pms.reset_index(drop=True)
 
     # --- 2. LINK TO TAB 2 (AHP OPTIMISATION) ---
-    # This block constantly listens for updates from Tab 2 and adjusts the live warehouse
     if 'ahp_handoff' in st.session_state:
         handoff = st.session_state['ahp_handoff']
         sync_eq = handoff['equip_name']
@@ -1582,7 +1553,6 @@ with tab10:
         lam = handoff['annual_lambda']
         
         if sync_eq in st.session_state['live_inventory']:
-            # Calculate dynamic ROP & EOQ identically to Tab 9
             lead_time = 30 
             daily_usage = lam / 365
             
@@ -1593,7 +1563,6 @@ with tab10:
             calc_rop = math.ceil(daily_usage * lead_time) + buffer
             calc_eoq = 1 if "Run To Failure" in strat else (math.ceil(math.sqrt((2 * lam * 50) / (150 * 0.2))) if lam > 0 else 1)
             
-            # Inject calculated rules into the live warehouse
             st.session_state['live_inventory'][sync_eq]['ROP'] = calc_rop
             st.session_state['live_inventory'][sync_eq]['EOQ'] = calc_eoq
             st.session_state['live_inventory'][sync_eq]['Strategy'] = strat
@@ -1615,13 +1584,11 @@ with tab10:
         st.info(f"**Target:** {eq_target}\n\n**Requires:** {wo_details['Parts Needed']} parts")
         
     with col_exec3:
-        # Action Buttons
         eq_name = wo_details['Equipment']
         parts_req = wo_details['Parts Needed']
         current_stock = st.session_state['live_inventory'][eq_name]['Stock']
         eoq_qty = st.session_state['live_inventory'][eq_name]['EOQ']
         
-        # Button 1: Do the Work
         if st.button("✅ Complete Maintenance", use_container_width=True):
             if current_stock >= parts_req:
                 st.session_state['live_inventory'][eq_name]['Stock'] -= parts_req
@@ -1635,7 +1602,6 @@ with tab10:
             else:
                 st.error(f"❌ Need {parts_req} parts, but only have {current_stock}.")
                 
-        # Button 2: Receive Shipment
         if st.button(f"📦 Receive Shipment (+{eoq_qty} units)", use_container_width=True):
             st.session_state['live_inventory'][eq_name]['Stock'] += eoq_qty
             st.success(f"Restocked {eoq_qty} units for {eq_name}!")
@@ -1666,6 +1632,7 @@ with tab10:
 
     with col_dash2:
         st.subheader("📦 Live Digital Warehouse")
+        st.caption("💡 Double-click any number in the 'Stock' column to manually adjust your inventory.")
         
         inv_df = pd.DataFrame.from_dict(st.session_state['live_inventory'], orient='index').reset_index()
         inv_df.rename(columns={'index': 'Equipment Name'}, inplace=True)
@@ -1677,20 +1644,28 @@ with tab10:
             
         inv_df['Status'] = inv_df.apply(check_stock, axis=1)
         
-        # Display the table with the new Strategy and EOQ columns
-        st.dataframe(
+        # 🔥 UPGRADED: st.data_editor instead of st.dataframe
+        edited_df = st.data_editor(
             inv_df[['Equipment Name', 'Stock', 'ROP', 'EOQ', 'Strategy', 'Status']], 
             hide_index=True, 
-            use_container_width=True
+            use_container_width=True,
+            # Lock everything except the 'Stock' column so users don't break the math
+            disabled=['Equipment Name', 'ROP', 'EOQ', 'Strategy', 'Status'],
+            key="warehouse_editor"
         )
+
+        # 🔥 SYNC EDITS BACK TO MEMORY
+        changes_made = False
+        for index, row in edited_df.iterrows():
+            eq_name = row['Equipment Name']
+            new_stock = int(row['Stock'])
+            
+            # If the user typed a new number, save it and trigger a refresh
+            if st.session_state['live_inventory'][eq_name]['Stock'] != new_stock:
+                st.session_state['live_inventory'][eq_name]['Stock'] = new_stock
+                changes_made = True
+                
+        if changes_made:
+            st.rerun() # Refresh the page immediately to update the 'Status' color
         
-        # Inside your Tab 7 code (and 8, 9, 10):
-if 'machinery_data' in st.session_state:
-    # Retrieve the data from memory
-    df = st.session_state['machinery_data']
-    
-    # Now build your charts and tables using 'df'
-    st.write("Data loaded successfully!")
-    st.dataframe(df)
-else:
-    st.warning("Please upload your data in Tab 3 first.")
+       
