@@ -93,20 +93,21 @@ with tab3:
     with st.expander("📂 Import Data from Excel/CSV", expanded=False):
         st.info("Required Columns: 'Equipment Name', 'Total Failures', 'Observation Years'")
         
-      # Inside your Tab 3 code:
-uploaded_file = st.file_uploader("Upload your Machinery Data", type=['csv', 'xlsx'])
-
-if uploaded_file is not None:
-    # Read the file
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
+        uploaded_file = st.file_uploader("Upload File", type=["xlsx", "xls", "csv"])
         
-    # SAVE IT TO THE SESSION STATE (This is the magic line!)
-    st.session_state['machinery_data'] = df
-    
-    st.success("Data uploaded and saved to memory!")
+        if uploaded_file is not None:
+            if st.button("🚀 Process & Load Data"):
+                try:
+                    # Determine file type
+                    if uploaded_file.name.endswith('.csv'):
+                        df_imported = pd.read_csv(uploaded_file)
+                    else:
+                        df_imported = pd.read_excel(uploaded_file)
+                        
+                    # SAVE IT TO THE SESSION STATE (This is the magic line!)
+                    st.session_state['machinery_data'] = df_imported
+                    
+                    st.success("Data uploaded and saved to memory!")
                     
                     # Clean headers
                     df_imported.columns = df_imported.columns.str.strip()
@@ -1110,84 +1111,75 @@ with tab7:
     
     st.divider()
 
-    # --- 1. LINK LOGIC ---
-    # Default values (Empty if not linked)
-    def_problem = ""
-    def_equip = ""
-    
-    # Check for the signal from Tab 2
-    if 'selected_equipment' in st.session_state:
-        linked_item = st.session_state['selected_equipment']
-        
-        # Show the link status
-        st.success(f"🔗 **Linked to Tab 2:** Starting RCA for **{linked_item}**")
-        
-        # Auto-fill the variables
-        def_equip = linked_item
-        def_problem = f"Failure of {linked_item}" # Auto-generate a title
+    # --- 1. CHECK IF DATA EXISTS IN MEMORY FIRST ---
+    if 'fleet_data' not in st.session_state:
+        st.warning("⚠️ Please upload your machinery data in Tab 3 first to unlock this tool.")
     else:
-        st.info("ℹ️ Select equipment in Tab 2 to auto-fill details here.")
-
-    # --- 2. DEFINE PROBLEM ---
-    col_rca1, col_rca2 = st.columns([1, 1])
-    
-    with col_rca1:
-        # We use the 'value=' parameter to inject the linked data
-        problem_statement = st.text_input("📝 Problem Statement", value=def_problem, placeholder="e.g., Main Engine Fuel Pump Failure")
-        failure_date = st.date_input("Date of Failure")
-    
-    with col_rca2:
-        # We use the 'value=' parameter to inject the linked data
-        equipment_tag = st.text_input("Equipment Tag / ID", value=def_equip)
-        team_members = st.text_input("Investigation Team", placeholder="e.g., Chief Engineer, 2nd Engineer")
-
-    st.divider()
-
-    # --- 3. THE 5 WHYS ---
-    st.subheader("❓ The 5 Whys")
-    
-    why_1 = st.text_input("1. Why did it fail?", placeholder="e.g., The bearing seized.")
-    why_2 = st.text_input("2. Why did that happen?", placeholder="e.g., No lubrication reached the bearing.")
-    why_3 = st.text_input("3. Why?", placeholder="e.g., The oil filter was completely clogged.")
-    why_4 = st.text_input("4. Why?", placeholder="e.g., Maintenance was missed for 6 months.")
-    why_5 = st.text_input("5. Why (Root Cause)?", placeholder="e.g., No tracking system for filter changes.")
-
-    # --- 4. GENERATE REPORT ---
-    if st.button("📄 Generate RCA Summary"):
-        if problem_statement and why_5:
-            st.success("RCA Report Generated!")
-            
-            report_text = f"""
-            **RCA REPORT: {problem_statement}**
-            **Date:** {failure_date} | **Tag:** {equipment_tag} | **Team:** {team_members}
-            
-            **Analysis Chain:**
-            1. {why_1}
-            2. ⬇️ {why_2}
-            3. ⬇️ {why_3}
-            4. ⬇️ {why_4}
-            5. 🔴 **ROOT CAUSE:** {why_5}
-            
-            **Recommended Action:**
-            Implement corrective measures to address: *{why_5}*
-            """
-            st.info(report_text)
-            
-            # Optional: Allow download
-            st.download_button("📥 Download Report", report_text, file_name=f"RCA_{equipment_tag}.txt")
-        else:
-            st.error("Please fill in the Problem Statement and the 5th Why to generate a report.")
+        # --- 2. LINK LOGIC ---
+        # Default values (Empty if not linked)
+        def_problem = ""
+        def_equip = ""
         
-        # Inside your Tab 7 code (and 8, 9, 10):
-if 'machinery_data' in st.session_state:
-    # Retrieve the data from memory
-    df = st.session_state['machinery_data']
-    
-    # Now build your charts and tables using 'df'
-    st.write("Data loaded successfully!")
-    st.dataframe(df)
-else:
-    st.warning("Please upload your data in Tab 3 first.")
+        # Check for the signal from Tab 2
+        if 'selected_equipment' in st.session_state:
+            linked_item = st.session_state['selected_equipment']
+            
+            # Show the link status
+            st.success(f"🔗 **Linked to Tab 2:** Starting RCA for **{linked_item}**")
+            
+            # Auto-fill the variables
+            def_equip = linked_item
+            def_problem = f"Failure of {linked_item}" # Auto-generate a title
+        else:
+            st.info("ℹ️ Select equipment in Tab 2 to auto-fill details here.")
+
+        # --- 3. DEFINE PROBLEM ---
+        col_rca1, col_rca2 = st.columns([1, 1])
+        
+        with col_rca1:
+            problem_statement = st.text_input("📝 Problem Statement", value=def_problem, placeholder="e.g., Main Engine Fuel Pump Failure")
+            failure_date = st.date_input("Date of Failure")
+        
+        with col_rca2:
+            equipment_tag = st.text_input("Equipment Tag / ID", value=def_equip)
+            team_members = st.text_input("Investigation Team", placeholder="e.g., Chief Engineer, 2nd Engineer")
+
+        st.divider()
+
+        # --- 4. THE 5 WHYS ---
+        st.subheader("❓ The 5 Whys")
+        
+        why_1 = st.text_input("1. Why did it fail?", placeholder="e.g., The bearing seized.")
+        why_2 = st.text_input("2. Why did that happen?", placeholder="e.g., No lubrication reached the bearing.")
+        why_3 = st.text_input("3. Why?", placeholder="e.g., The oil filter was completely clogged.")
+        why_4 = st.text_input("4. Why?", placeholder="e.g., Maintenance was missed for 6 months.")
+        why_5 = st.text_input("5. Why (Root Cause)?", placeholder="e.g., No tracking system for filter changes.")
+
+        # --- 5. GENERATE REPORT ---
+        if st.button("📄 Generate RCA Summary"):
+            if problem_statement and why_5:
+                st.success("RCA Report Generated!")
+                
+                report_text = f"""
+                **RCA REPORT: {problem_statement}**
+                **Date:** {failure_date} | **Tag:** {equipment_tag} | **Team:** {team_members}
+                
+                **Analysis Chain:**
+                1. {why_1}
+                2. ⬇️ {why_2}
+                3. ⬇️ {why_3}
+                4. ⬇️ {why_4}
+                5. 🔴 **ROOT CAUSE:** {why_5}
+                
+                **Recommended Action:**
+                Implement corrective measures to address: *{why_5}*
+                """
+                st.info(report_text)
+                
+                # Optional: Allow download
+                st.download_button("📥 Download Report", report_text, file_name=f"RCA_{equipment_tag}.txt")
+            else:
+                st.error("Please fill in the Problem Statement and the 5th Why to generate a report.")
     
 # ==========================================
 # TAB 8: SPARE PARTS OPTIMIZER (Time-Based)
