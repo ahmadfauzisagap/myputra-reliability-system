@@ -1491,6 +1491,14 @@ with tab10:
     st.header("⚙️ PMS & Live Inventory Ledger")
     st.markdown("Execute scheduled work orders and automatically track your live warehouse stock.")
     st.divider()
+    
+    # --- RESET BUTTON FOR DEMO PURPOSES ---
+    if st.button("🔄 Reset Warehouse Memory", type="primary"):
+        if 'live_inventory' in st.session_state:
+            del st.session_state['live_inventory']
+        if 'pms_tasks' in st.session_state:
+            del st.session_state['pms_tasks']
+        st.rerun()
 
     # --- 1. INITIALIZE & SYNC LIVE DATABASE ---
     if 'shared_df' in st.session_state and st.session_state['shared_df'] is not None:
