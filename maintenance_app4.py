@@ -93,21 +93,20 @@ with tab3:
     with st.expander("📂 Import Data from Excel/CSV", expanded=False):
         st.info("Required Columns: 'Equipment Name', 'Total Failures', 'Observation Years'")
         
-        uploaded_file = st.file_uploader("Upload File", type=["xlsx", "xls", "csv"])
+      # Inside your Tab 3 code:
+uploaded_file = st.file_uploader("Upload your Machinery Data", type=['csv', 'xlsx'])
+
+if uploaded_file is not None:
+    # Read the file
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
         
-        if uploaded_file is not None:
-            if st.button("🚀 Process & Load Data"):
-                try:
-                    # Determine file type
-                    if uploaded_file.name.endswith('.csv'):
-                        df_imported = pd.read_csv(uploaded_file)
-                    else:
-                        df_imported = pd.read_excel(uploaded_file)
-                        
-                    # SAVE IT TO THE SESSION STATE (This is the magic line!)
-                    st.session_state['machinery_data'] = df_imported
-                    
-                    st.success("Data uploaded and saved to memory!")
+    # SAVE IT TO THE SESSION STATE (This is the magic line!)
+    st.session_state['machinery_data'] = df
+    
+    st.success("Data uploaded and saved to memory!")
                     
                     # Clean headers
                     df_imported.columns = df_imported.columns.str.strip()
@@ -219,20 +218,7 @@ with tab3:
         st.session_state['fleet_data'].update(edited_df)
         st.success("Database updated!")
         
-        # Inside your Tab 3 code:
-uploaded_file = st.file_uploader("Upload your Machinery Data", type=['csv', 'xlsx'])
-
-if uploaded_file is not None:
-    # Read the file
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
-        
-    # SAVE IT TO THE SESSION STATE (This is the magic line!)
-    st.session_state['machinery_data'] = df
-    
-    st.success("Data uploaded and saved to memory!")
+       
 
 # ==========================================
 # TAB 1: FUZZY LOGIC (Safety Priority Logic)
