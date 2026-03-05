@@ -218,6 +218,21 @@ with tab3:
     if st.button("💾 Save Changes"):
         st.session_state['fleet_data'].update(edited_df)
         st.success("Database updated!")
+        
+        # Inside your Tab 3 code:
+uploaded_file = st.file_uploader("Upload your Machinery Data", type=['csv', 'xlsx'])
+
+if uploaded_file is not None:
+    # Read the file
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
+        
+    # SAVE IT TO THE SESSION STATE (This is the magic line!)
+    st.session_state['machinery_data'] = df
+    
+    st.success("Data uploaded and saved to memory!")
 
 # ==========================================
 # TAB 1: FUZZY LOGIC (Safety Priority Logic)
