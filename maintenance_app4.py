@@ -36,6 +36,36 @@ from skfuzzy import control as ctrl
 import matplotlib.pyplot as plt
 
 # ==========================================
+# LOGIN SCREEN
+# ==========================================
+# Check if the user has already logged in during this session
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+# If they are not logged in, show the password box
+if not st.session_state['logged_in']:
+    st.title("🔒 System Locked")
+    st.warning("Please enter the password to access the MyPutRa Reliability System.")
+    
+    password_input = st.text_input("Password", type="password")
+    
+    if st.button("Login"):
+        # Check if the typed password matches the one in Streamlit Secrets
+        if password_input == st.secrets["APP_PASSWORD"]:
+            st.session_state['logged_in'] = True
+            st.rerun()  # Refresh the page to load the actual app
+        else:
+            st.error("Incorrect password. Please try again.")
+    
+    # The magic command! This stops the rest of your app from loading until they log in.
+    st.stop() 
+
+# ==========================================
+# YOUR ACTUAL APP STARTS HERE
+# ==========================================
+# (Your existing code with st.title, tab1, tab2, etc. goes down here)
+
+# ==========================================
 # PART 1: SYSTEM CONFIGURATION & STATE
 # ==========================================
 st.set_page_config(page_title="MyPutRa Machinery Reliability Suite {Beta}", layout="wide")
