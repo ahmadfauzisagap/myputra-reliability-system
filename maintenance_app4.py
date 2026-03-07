@@ -245,9 +245,16 @@ with tab3:
         height=400
     )
 
-    if st.button("💾 Save Changes"):
-        st.session_state['fleet_data'].update(edited_df)
-        st.success("Database updated!")
+    # --- AUTO-CALCULATE LOGIC ---
+    # We only care if the user changed the raw input numbers
+    editable_cols = ['Equipment Name', 'Total Failures', 'Observation Years']
+    
+    # Check if the new edits are different from what was previously displayed
+    if not edited_df[editable_cols].equals(df_display[editable_cols]):
+        # Overwrite the main memory with the new manual edits
+        st.session_state['fleet_data'].update(edited_df[editable_cols])
+        # Force the app to instantly reboot so it can perform the math on the new numbers
+        st.rerun()
         
        
 
