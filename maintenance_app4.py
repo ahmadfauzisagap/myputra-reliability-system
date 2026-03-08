@@ -800,7 +800,7 @@ with tab5:
     st.header("📚 Hybrid Reliability Framework")
     st.markdown("""
     **Reference:** A Hybrid Reliability Framework for Spare Part Optimisation Under Uncertainty of Marine Vessel Systems  
-    *Ahmad Fauzi Sagap et.al (2025)* **Journal:** PLATFORM - A Journal of Engineering (Vol. 9, No. 4) | **Publisher:** UTP Press
+    *Ahmad Fauzi Sagap et.al (2025)* **Journal:** PLATFORM - A Journal of Engineering (Vol. 9, No. 4) | **Publisher:** UTP Press | https://doi.org/10.5281/zenodo.18750628
     """)
     
     st.divider()
