@@ -34,6 +34,7 @@ import pandas as pd
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 import matplotlib.pyplot as plt
+import datetime as dt
 
 # ==========================================
 # LOGIN SCREEN
@@ -114,14 +115,17 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
 ])
 
 # ==========================================
-# TAB 3: FLEET DATA MANAGEMENT (With MTBF)
+# TAB 3: FLEET DATA MANAGEMENT (Live MTBF)
 # ==========================================
+
+
 with tab3:
     st.header("Machinery/Component Reliability Database")
 
     # --- 1. IMPORT FROM EXCEL ---
     with st.expander("📂 Import Data from Excel/CSV", expanded=False):
-        st.info("Required Columns: 'Equipment Name', 'Total Failures', 'Observation Years'")
+        # UPDATED: Changed required columns to include Parts and Start Date
+        st.info("Required Columns: 'Equipment Name', 'Parts', 'Start Date', 'Total Failures'")
         
         uploaded_file = st.file_uploader("Upload File", type=["xlsx", "xls", "csv"])
         
@@ -134,19 +138,22 @@ with tab3:
                     else:
                         df_imported = pd.read_excel(uploaded_file)
                         
-                    # SAVE IT TO THE SESSION STATE (This is the magic line!)
+                    # SAVE IT TO THE SESSION STATE
                     st.session_state['machinery_data'] = df_imported
                     
                     st.success("Data uploaded and saved to memory!")
                     
                     # Clean headers
                     df_imported.columns = df_imported.columns.str.strip()
-                    required_cols = ['Equipment Name', 'Total Failures', 'Observation Years']
+                    
+                    # UPDATED: New required columns
+                    required_cols = ['Equipment Name', 'Parts', 'Start Date', 'Total Failures']
                     
                     if all(col in df_imported.columns for col in required_cols):
                         # Init calculated columns
+                        df_imported['Observation Years'] = 0.0 # Will be calculated live
                         df_imported['Calculated λ'] = 0.0
-                        df_imported['MTBF (Months)'] = 0.0  # <--- NEW
+                        df_imported['MTBF (Months)'] = 0.0  
                         df_imported['Reliability (R)'] = 1.0
                         
                         # Pad to 100 rows if needed
@@ -155,10 +162,12 @@ with tab3:
                             rows_needed = 100 - current_rows
                             empty_data = pd.DataFrame({
                                 "Equipment Name": [f"Slot {i+1}" for i in range(rows_needed)],
+                                "Parts": ["-"] * rows_needed,                      # <--- NEW
+                                "Start Date": [dt.date.today()] * rows_needed,     # <--- NEW
                                 "Total Failures": [0]*rows_needed,
-                                "Observation Years": [1.0]*rows_needed,
+                                "Observation Years": [0.001]*rows_needed,
                                 "Calculated λ": [0.0]*rows_needed,
-                                "MTBF (Months)": [0.0]*rows_needed, # <--- NEW
+                                "MTBF (Months)": [0.0]*rows_needed, 
                                 "Reliability (R)": [1.0]*rows_needed
                             })
                             df_imported = pd.concat([df_imported, empty_data], ignore_index=True)
@@ -176,22 +185,38 @@ with tab3:
     # --- 2. SETTINGS ---
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
-        search_query = st.text_input("🔍 Search Equipment", placeholder="Type name...")
+        search_query = st.text_input("🔍 Search Equipment or Parts", placeholder="Type name...")
     with c2:
         mission_time = st.number_input("Mission Time (t) [Years]", min_value=0.1, value=1.0, step=0.5)
     with c3:
         st.caption(f"Reliability Calc for **{mission_time} Years**")
 
-    # --- 3. CALCULATIONS ---
+   # --- 3. CALCULATIONS ---
     df_calc = st.session_state['fleet_data'].copy()
     
+    # 🔥 THE BULLETPROOF PATCH: Auto-create missing columns to prevent crashes
+    if 'Start Date' not in df_calc.columns:
+        df_calc['Start Date'] = pd.to_datetime('today').date()
+    if 'Parts' not in df_calc.columns:
+        df_calc['Parts'] = "-"
+
+    # --- NEW: LIVE OBSERVATION DATE CALCULATION ---
+    # Convert 'Start Date' to proper datetime format
+    df_calc['Start Date'] = pd.to_datetime(df_calc['Start Date'], errors='coerce').dt.date
+    today = dt.date.today()
+    
+    # Calculate difference in days, divide by 365.25 for years. Prevent division by zero.
+    df_calc['Observation Years'] = df_calc['Start Date'].apply(
+        lambda x: max((today - x).days / 365.25, 0.001) if pd.notnull(x) else 0.001
+    )
+    # ----------------------------------------------
+
     # A. Calculate Lambda
     df_calc["Calculated λ"] = df_calc.apply(
         lambda x: x["Total Failures"] / x["Observation Years"] if x["Observation Years"] > 0 else 0, axis=1
     )
     
     # B. Calculate MTBF (Months) = (1 / Lambda) * 12
-    # If Lambda is 0 (No failures), set MTBF to 0 (or infinite representation)
     df_calc["MTBF (Months)"] = df_calc["Calculated λ"].apply(
         lambda x: (1 / x * 12) if x > 0 else 0
     )
@@ -203,15 +228,16 @@ with tab3:
     st.session_state['fleet_data'] = df_calc
     
     # --- SYNC TO TAB 5 ---
-    # We send this data to Tab 5 so the Sensitivity Analysis works automatically.
-    # We also rename the column because Tab 5 expects "Failure Rate (λ)"
     df_sync = df_calc.copy()
     df_sync.rename(columns={'Calculated λ': 'Failure Rate (λ)'}, inplace=True)
     st.session_state['shared_df'] = df_sync
 
     # --- 4. DISPLAY ---
     if search_query:
-        df_display = df_calc[df_calc['Equipment Name'].str.contains(search_query, case=False, na=False)]
+        # UPDATED: Search now looks at both Equipment Name OR Parts
+        mask = df_calc['Equipment Name'].str.contains(search_query, case=False, na=False) | \
+               df_calc['Parts'].str.contains(search_query, case=False, na=False)
+        df_display = df_calc[mask]
     else:
         df_display = df_calc
 
@@ -219,19 +245,17 @@ with tab3:
         df_display,
         column_config={
             "Equipment Name": st.column_config.TextColumn("Equipment Name"),
+            "Parts": st.column_config.TextColumn("Parts"),                                     # <--- NEW
+            "Start Date": st.column_config.DateColumn("Start Date", format="YYYY-MM-DD"),      # <--- NEW
+            "Observation Years": st.column_config.NumberColumn("Live Obs. Years", disabled=True, format="%.2f"), # <--- NOW DISABLED
             "Total Failures": st.column_config.NumberColumn("Failures", min_value=0),
-            "Observation Years": st.column_config.NumberColumn("Obs. Years", min_value=0.1),
             "Calculated λ": st.column_config.NumberColumn("λ (Fail Rate)", disabled=True, format="%.4f"),
-            
-            # --- NEW MTBF COLUMN CONFIG ---
             "MTBF (Months)": st.column_config.NumberColumn(
                 "MTBF (Months)",
                 help="Mean Time Between Failures in Months",
                 format="%.1f",
                 disabled=True
             ),
-            # ------------------------------
-            
             "Reliability (R)": st.column_config.ProgressColumn(
                 "Reliability %", 
                 format="%.2f", 
@@ -242,18 +266,17 @@ with tab3:
         num_rows="fixed", 
         hide_index=True, 
         use_container_width=True, 
-        height=400
+        height=400,
+        # Display order to make it look clean
+        column_order=["Equipment Name", "Parts", "Start Date", "Observation Years", "Total Failures", "Calculated λ", "MTBF (Months)", "Reliability (R)"]
     )
 
     # --- AUTO-CALCULATE LOGIC ---
-    # We only care if the user changed the raw input numbers
-    editable_cols = ['Equipment Name', 'Total Failures', 'Observation Years']
+    # UPDATED: The editable columns have changed
+    editable_cols = ['Equipment Name', 'Parts', 'Start Date', 'Total Failures']
     
-    # Check if the new edits are different from what was previously displayed
     if not edited_df[editable_cols].equals(df_display[editable_cols]):
-        # Overwrite the main memory with the new manual edits
         st.session_state['fleet_data'].update(edited_df[editable_cols])
-        # Force the app to instantly reboot so it can perform the math on the new numbers
         st.rerun()
         
        
